@@ -3,10 +3,9 @@ FROM python:3.11.1-slim
 # apt automation for non-interactive environment
 ENV DEBIAN_FRONTEND=noninteractive
 
-# terraform install pre-requisite
+# terraform install pre-requisites
 RUN apt-get update && apt-get install -y gnupg software-properties-common wget
 
-# terraform install
 # install HashiCorp GPG key
 RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
     gpg --dearmor | \
