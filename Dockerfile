@@ -22,9 +22,12 @@ RUN apt update && apt install -y \
     awscli \
     terraform
 
+# set base dir for cmds, etc
 WORKDIR /opt/terraform
 
+# add files
 ADD . ./
 
+# default entrypoint / cmd
 ENTRYPOINT ["python3", "-u", "entrypoint.py"]
 CMD ["help"]
