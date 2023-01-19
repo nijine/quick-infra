@@ -1,39 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import fcntl
-import os
 import subprocess
 import sys
 from threading import Thread
 
 
 def runBaseCmd(cmd: list, opts: dict={}) -> None:
-    terraform_process = subprocess.Popen(
-        cmd, stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as t_proc:
+        for line in t_proc.stdout:
+            print(line.rstrip())
 
-    thread = Thread(target=readCmdStdout, args=[terraform_process.stdout])
-    thread.daemon = True
-    thread.start()
-
-    terraform_process.wait()
-    thread.join(timeout=1)
-
-    if terraform_process.returncode != 0:
+    if t_proc.returncode != 0:
         print("Issue running {cmd}")
         sys.exit(1)
-
-
-def readCmdStdout(stdout):
-    while True:
-        fd = stdout.fileno()
-        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-
-        try:
-            print(stdout.read().strip())
-        except:
-            continue
 
 
 def runCreate(args: argparse.Namespace) -> None:
