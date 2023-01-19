@@ -19,6 +19,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
 # install tools
 RUN apt update && apt install -y \
     awscli \
+    git \
     terraform
 
 # set base dir for cmds, etc
