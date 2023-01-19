@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 import argparse
+import fcntl
+import os
 import subprocess
 import sys
 from threading import Thread
 
 
-def runBaseCmd(cmd: list, opts: dict) -> None:
+def runBaseCmd(cmd: list, opts: dict={}) -> None:
     terraform_process = subprocess.Popen(
         cmd, stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    thread = Thread(target=readStdout, args=[terraform_process.stdout])
+    thread = Thread(target=readCmdStdout, args=[terraform_process.stdout])
     thread.daemon = True
     thread.start()
 
@@ -50,29 +52,40 @@ def runCreate(args: argparse.Namespace) -> None:
     # run terraform init, workspace opts if not n/a, and plan/apply
     init_args = ["terraform", f"-chdir={root_dir}", "init"]
 
-    result = subprocess.run(init_args, capture_output=True)
-
-    if result.returncode != 0:
-        print(result.stdout.decode('utf-8'), '\n', result.stderr.decode('utf-8'))
-        raise Exception("Terraform init failed during runCreate!")
+    runBaseCmd(init_args)
 
     # run plan
     plan_args = ["terraform", f"-chdir={root_dir}", "plan"]
 
-    result = subprocess.run(plan_args, capture_output=True)
-
-    if result.returncode != 0:
-        print(result.stdout.decode('utf-8'), '\n', result.stderr.decode('utf-8'))
-        raise Exception("Terraform plan failed during runCreate!")
+    runBaseCmd(plan_args)
 
     # run apply
     apply_args = ["terraform", f"-chdir={root_dir}", "apply", "-auto-approve"]
 
-    result = subprocess.run(apply_args, capture_output=True)
+    runBaseCmd(apply_args)
 
-    if result.returncode != 0:
-        print(result.stdout.decode('utf-8'), '\n', result.stderr.decode('utf-8'))
-        raise Exception("Terraform apply failed during runCreate!")
+
+def runPreview(args: argparse.Namespace) -> None:
+    # parse options
+    quiet = args.quiet
+
+    # terraform working dir
+    infra_root = args.type
+
+    # populate config
+    # TODO: make this reference a config file or something (i.e. config.py)
+    env_root = "/opt/terraform"
+    root_dir = f"{env_root}/{infra_root}" 
+
+    # run terraform init, workspace opts if not n/a, and plan
+    init_args = ["terraform", f"-chdir={root_dir}", "init"]
+
+    runBaseCmd(init_args)
+
+    # run plan
+    plan_args = ["terraform", f"-chdir={root_dir}", "plan"]
+
+    runBaseCmd(plan_args)
 
 
 def runDestroy(args: argparse.Namespace) -> None:
@@ -105,7 +118,7 @@ def runDestroy(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", help="The action to perform", choices=["create", "destroy", "list"])
+    parser.add_argument("action", help="The action to perform", choices=["create", "preview", "destroy", "list"])
     # maybe make the choices auto-poplate based on file dirs?
     parser.add_argument("type", help="The type of infra to create", choices=["site", "app"])
     parser.add_argument("-o", "--options", help="A comma-separated list of optional settings to use with --type")
@@ -120,7 +133,9 @@ def main() -> None:
 
     if args.action == "create":
         runCreate(args)
-    elif args.arction == "destroy":
+    elif args.action == "preview":
+        runPreview(args)
+    elif args.action == "destroy":
         runDestroy(args)
 
 
