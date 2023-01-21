@@ -1,4 +1,5 @@
 from argparse import Namespace
+from dataclasses import dataclass
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -26,22 +27,49 @@ BACKEND_DEFAULTS = {
     },
 }
 
+@dataclass
+class LocalBackendConfig:
+    template_path: str = 'backends/local.tf.template'
+    state_path: str = '/state/terraform.tfstate'
 
-def buildTerraformTemplate(config: dict, opts: dict) -> None:
+
+@dataclass
+class S3BackendConfig:
+    template_path: str = 'backends/s3.tf.template'
+    bucket: str
+    state_name: str
+    region: str
+
+
+@dataclass
+class SiteConfig:
+    domain_name: str = 'example.com'
+
+
+class Config:
+    def __init__(self, backend_config, type_config):
+        self.backend_config = backend_config
+        self.type_config = type_config
+
+
+def buildTerraformTemplate(config: dict) -> None:
+    template_opts = config['template']
+    backend_opts = config['backend']
+
     # open backend template
     environment = Environment(loader=FileSystemLoader(f"{config['root_dir']}/backends"))
-    template = environment.get_template(f"{opts['backend_type']}.tf.template")
+    template = environment.get_template(f"{backend_opts['type']}.tf.template")
 
     # pre-render backend block
-    backend_block = template.render(opts)
+    backend_block = template.render(backend_opts)
 
     # open main.tf.template
     environment = Environment(loader=FileSystemLoader(config['work_dir']))
     template = environment.get_template("main.tf.template")
 
     # replace vars with listed options
-    opts['backend_configuration'] = backend_block
-    content = template.render(opts)
+    template_opts['backend_configuration'] = backend_block
+    content = template.render(template_opts)
 
     # write out main.tf file
     with open(f"{config['work_dir']}/main.tf", mode="w", encoding="utf-8") as t_file:
@@ -61,24 +89,19 @@ def processConfig(args: Namespace) -> dict:
     config['root_dir'] = f"/opt/terraform"
     config['work_dir'] = f"{config['root_dir']}/{args.type}"
 
-    # populate terraform template
-    template_opts = processOptions(args.options)
-
-    # pre-process options with defaults
+    # populate terraform template, including defaults
+    template_opts = processOptions(args.app_options)
     template_opts = {**APP_DEFAULTS[args.type], **template_opts}
 
-    backend = args.backend or ARG_DEFAULTS['backend']
-    region = args.region or ARG_DEFAULTS['region']
-    backend_opts = BACKEND_DEFAULTS[backend]
-    backend_opts['backend_type'] = backend
-    backend_opts['region'] = region
+    # populate backend options, including defaults
+    backend_opts = processOptions(args.backend_options)
+    backend_opts.setdefault('type', ARG_DEFAULTS['backend'])
+    backend_opts = {**BACKEND_DEFAULTS[backend_opts['type']], **backend_opts}
 
-    # add backend options
-    template_opts = {**template_opts, **backend_opts}
-
-    buildTerraformTemplate(config, template_opts)
-
+    config['backend'] = backend_opts
     config['template'] = template_opts
+
+    buildTerraformTemplate(config)
 
     return config
 
