@@ -16,11 +16,13 @@ RUN echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
     https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
     tee /etc/apt/sources.list.d/hashicorp.list
 
-# install tools
+# install tools & deps
 RUN apt update && apt install -y \
     awscli \
     git \
     terraform
+
+RUN python -m pip install Jinja2
 
 # set base dir for cmds, etc
 WORKDIR /opt/terraform
