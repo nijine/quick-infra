@@ -1,0 +1,5 @@
+  backend "s3" {
+    bucket = "{{ bucket }}"
+    key    = "{{ state_name }}.tfstate"
+    region = "{{ region }}"
+  }
