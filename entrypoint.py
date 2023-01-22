@@ -64,16 +64,31 @@ def runDestroy(opts: dict) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", help="The action to perform", choices=["create", "preview", "destroy", "debug"])
-    parser.add_argument("type", help="The type of infra to create", choices=["site"])
-    parser.add_argument("-o", "--options", help="A comma-separated list of optional settings to use with --type", default="")
-    parser.add_argument("-q", "--quiet", help="Reduces output (hides the various terraform run stages i.e. init, plan, apply)", action="count", default=0)
-    parser.add_argument("-r", "--region", help="The region to use for the provider")
-    parser.add_argument("-e", "--backend", help="The type of backend to use for terraform state", choices=["local", "s3"])
-    parser.add_argument("-p", "--path", help="The path to use when using a local state backend")
-    parser.add_argument("-b", "--bucket", help="An S3 bucket to use for remote state")
-    parser.add_argument("--bucket-region", help="The S3 bucket region to use for the remote state")
-    parser.add_argument("-s", "--state-name", help="A custom name to use for the state file")
+    parser.add_argument("action",
+        help="The action to perform",
+        choices=["create", "preview", "destroy", "debug"])
+
+    parser.add_argument("type",
+        help="The type of infra to create",
+        choices=["site"])
+
+    parser.add_argument("options",
+        help="A comma-separated list of settings to use alongside the 'type' argument",
+        default="domain_name=example.com")
+
+    parser.add_argument("-b", "--backend-options",
+        help="A comma-separated list of configurion parameters for the terraform backend",
+        default="type=local,path=/state/terraform.tfstate")
+
+    parser.add_argument("-r", "--region",
+        help="The region to use for the provider",
+        default='us-east-1')
+
+    parser.add_argument("-q", "--quiet",
+        help="Reduces output (hides the various terraform run stages i.e. init, plan, etc.)",
+        action="count",
+        default=0)
+
     # TODO: implement
     # parser.add_argument("-w", "--workspace", help="A custom workspace name")
 
