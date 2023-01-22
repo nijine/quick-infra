@@ -2,91 +2,46 @@ from argparse import Namespace
 from jinja2 import Environment, FileSystemLoader
 
 
-ARG_DEFAULTS = {
-    'backend': 'local',
-    'region': 'us-east-1',
-}
+def buildTerraformTemplate(config: dict) -> None:
+    template_opts = config['template']
+    backend_opts = config['backend']
 
-APP_DEFAULTS = {
-    'site': {
-        'domain_name': 'example.com',
-    },
-    'app': {
-    },
-}
-
-BACKEND_DEFAULTS = {
-    's3': {
-        'bucket': 'my-terraform-bucket',
-        'state_name': 'terraform',
-        'bucket_region': 'us-east-1',
-    },
-    'local': {
-        'path': '/state/terraform.tfstate',
-    },
-}
-
-
-def buildTerraformTemplate(config: dict, opts: dict) -> None:
     # open backend template
     environment = Environment(loader=FileSystemLoader(f"{config['root_dir']}/backends"))
-    template = environment.get_template(f"{opts['backend_type']}.tf.template")
+    template = environment.get_template(f"{backend_opts['type']}.tf.template")
 
     # pre-render backend block
-    backend_block = template.render(opts)
+    backend_block = template.render(backend_opts)
 
     # open main.tf.template
     environment = Environment(loader=FileSystemLoader(config['work_dir']))
     template = environment.get_template("main.tf.template")
 
     # replace vars with listed options
-    opts['backend_configuration'] = backend_block
-    content = template.render(opts)
+    template_opts['backend_configuration'] = backend_block
+    content = template.render(template_opts)
 
     # write out main.tf file
     with open(f"{config['work_dir']}/main.tf", mode="w", encoding="utf-8") as t_file:
         t_file.write(content)
 
 
-# NOTE: see if we can clean up this structure a little
 def processConfig(args: Namespace) -> dict:
-    config = {}
+    config = dict()
 
-    # verbosity
     config['quiet'] = args.quiet
-
-    # terraform working dir
-    infra_root = args.type
-
-    config['root_dir'] = f"/opt/terraform"
+    config['root_dir'] = '/opt/terraform'
     config['work_dir'] = f"{config['root_dir']}/{args.type}"
+    config['backend'] = processOptions(args.backend_options)
+    config['template'] = {**processOptions(args.options), **{'region': args.region}}
 
-    # populate terraform template
-    template_opts = processOptions(args.options)
-
-    # pre-process options with defaults
-    template_opts = {**APP_DEFAULTS[args.type], **template_opts}
-
-    backend = args.backend or ARG_DEFAULTS['backend']
-    region = args.region or ARG_DEFAULTS['region']
-    backend_opts = BACKEND_DEFAULTS[backend]
-    backend_opts['backend_type'] = backend
-    backend_opts['region'] = region
-
-    # add backend options
-    template_opts = {**template_opts, **backend_opts}
-
-    buildTerraformTemplate(config, template_opts)
-
-    config['template'] = template_opts
+    validateConfig(config)
+    buildTerraformTemplate(config)
 
     return config
 
 
 def processOptions(options: str) -> dict:
-    if options == "":
-        return {}
-
     opts_list = options.split(',')
     opts_dict = {}
 
@@ -96,4 +51,20 @@ def processOptions(options: str) -> dict:
 
     return opts_dict
 
+
+def validateConfig(config: dict) -> None:
+    if 'type' not in config['backend']:
+        raise Exception("Missing 'type' in backend configuration!")
+    if config['backend']['type'] == 's3':
+        if 'bucket' not in config['backend']:
+            raise Exception("Missing 'bucket' in backend configuration!")
+        if 'state_name' not in config['backend']:
+            raise Exception("Missing 'state_name' in backend configuration!")
+        if 'region' not in config['backend']:
+            raise Exception("Missing 'region' in backend configuration!")
+    elif config['backend']['type'] == 'local':
+        if 'path' not in config['backend']:
+            raise Exception("Missing 'path' in backend configuration!")
+    else:
+        raise Exception(f"Unsupported backend: {config['backend']['type']}")
 
