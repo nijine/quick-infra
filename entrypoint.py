@@ -97,6 +97,7 @@ def main() -> None:
     # process config and build terraform files
     config = processConfig(args)
 
+    # useful for viewing the configuration and generated templates in case of issues
     if args.action == "debug":
         print(f"Config: {config}")
         print("main.tf:")
