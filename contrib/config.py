@@ -1,55 +1,5 @@
 from argparse import Namespace
-from dataclasses import dataclass
 from jinja2 import Environment, FileSystemLoader
-
-
-ARG_DEFAULTS = {
-    'backend': 'local',
-    'region': 'us-east-1',
-}
-
-APP_DEFAULTS = {
-    'site': {
-        'domain_name': 'example.com',
-    },
-    'app': {
-    },
-}
-
-BACKEND_DEFAULTS = {
-    's3': {
-        'bucket': 'my-terraform-bucket',
-        'state_name': 'terraform',
-        'bucket_region': 'us-east-1',
-    },
-    'local': {
-        'path': '/state/terraform.tfstate',
-    },
-}
-
-@dataclass
-class LocalBackendConfig:
-    template_path: str = 'backends/local.tf.template'
-    state_path: str = '/state/terraform.tfstate'
-
-
-@dataclass
-class S3BackendConfig:
-    template_path: str = 'backends/s3.tf.template'
-    bucket: str
-    state_name: str
-    region: str
-
-
-@dataclass
-class SiteConfig:
-    domain_name: str = 'example.com'
-
-
-class Config:
-    def __init__(self, backend_config, type_config):
-        self.backend_config = backend_config
-        self.type_config = type_config
 
 
 def buildTerraformTemplate(config: dict) -> None:
@@ -76,40 +26,22 @@ def buildTerraformTemplate(config: dict) -> None:
         t_file.write(content)
 
 
-# NOTE: see if we can clean up this structure a little
 def processConfig(args: Namespace) -> dict:
-    config = {}
+    config = dict()
 
-    # verbosity
     config['quiet'] = args.quiet
-
-    # terraform working dir
-    infra_root = args.type
-
-    config['root_dir'] = f"/opt/terraform"
+    config['root_dir'] = '/opt/terraform'
     config['work_dir'] = f"{config['root_dir']}/{args.type}"
+    config['backend'] = processOptions(args.backend_options)
+    config['template'] = {**processOptions(args.options), **{'region': args.region}}
 
-    # populate terraform template, including defaults
-    template_opts = processOptions(args.app_options)
-    template_opts = {**APP_DEFAULTS[args.type], **template_opts}
-
-    # populate backend options, including defaults
-    backend_opts = processOptions(args.backend_options)
-    backend_opts.setdefault('type', ARG_DEFAULTS['backend'])
-    backend_opts = {**BACKEND_DEFAULTS[backend_opts['type']], **backend_opts}
-
-    config['backend'] = backend_opts
-    config['template'] = template_opts
-
+    validateConfig(config)
     buildTerraformTemplate(config)
 
     return config
 
 
 def processOptions(options: str) -> dict:
-    if options == "":
-        return {}
-
     opts_list = options.split(',')
     opts_dict = {}
 
@@ -119,4 +51,20 @@ def processOptions(options: str) -> dict:
 
     return opts_dict
 
+
+def validateConfig(config: dict) -> None:
+    if 'type' not in config['backend']:
+        raise Exception("Missing 'type' in backend configuration!")
+    if config['backend']['type'] == 's3':
+        if 'bucket' not in config['backend']:
+            raise Exception("Missing 'bucket' in backend configuration!")
+        if 'state_name' not in config['backend']:
+            raise Exception("Missing 'state_name' in backend configuration!")
+        if 'region' not in config['backend']:
+            raise Exception("Missing 'region' in backend configuration!")
+    elif config['backend']['type'] == 'local':
+        if 'path' not in config['backend']:
+            raise Exception("Missing 'path' in backend configuration!")
+    else:
+        raise Exception(f"Unsupported backend: {config['backend']['type']}")
 
