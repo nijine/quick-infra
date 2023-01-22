@@ -28,19 +28,13 @@ def runCreate(opts: dict) -> None:
     work_dir = opts.get('work_dir', '.')
     quiet = opts.get('quiet', -1)
 
-    # run terraform init, workspace opts if not n/a, and plan/apply
     init_args = ["terraform", f"-chdir={work_dir}", "init"]
-
-    runBaseCmd(init_args, quiet >= 1)
-
-    # run plan
     plan_args = ["terraform", f"-chdir={work_dir}", "plan"]
-
-    runBaseCmd(plan_args, quiet >= 2)
-
-    # run apply
     apply_args = ["terraform", f"-chdir={work_dir}", "apply", "-auto-approve"]
 
+    # run init, plan, and apply
+    runBaseCmd(init_args, quiet >= 1)
+    runBaseCmd(plan_args, quiet >= 2)
     runBaseCmd(apply_args, quiet >= 3)
 
 
@@ -48,14 +42,11 @@ def runPreview(opts: dict) -> None:
     work_dir =  opts.get('work_dir', '.')
     quiet = opts.get('quiet', -1)
 
-    # run terraform init, workspace opts if not n/a, and plan
     init_args = ["terraform", f"-chdir={work_dir}", "init"]
-
-    runBaseCmd(init_args, quiet >= 1)
-
-    # run plan
     plan_args = ["terraform", f"-chdir={work_dir}", "plan"]
 
+    # run init and plan
+    runBaseCmd(init_args, quiet >= 1)
     runBaseCmd(plan_args, quiet >= 2)
 
 
@@ -63,14 +54,11 @@ def runDestroy(opts: dict) -> None:
     work_dir =  opts.get('work_dir', '.')
     quiet = opts.get('quiet', -1)
 
-    # run terraform init, workspace opts if not n/a, and plan/apply
     init_args = ["terraform", f"-chdir={work_dir}", "init"]
-
-    runBaseCmd(init_args, quiet >= 1)
-
-    # run destroy
     destroy_args = ["terraform", f"-chdir={work_dir}", "destroy", "-auto-approve"]
 
+    # run init and destroy
+    runBaseCmd(init_args, quiet >= 1)
     runBaseCmd(destroy_args, quiet >= 2)
 
 
